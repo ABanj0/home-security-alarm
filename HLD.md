@@ -4,9 +4,9 @@
 | Document field | Value |
 |---|---|
 | Document ID | HLD-HOME-ALARM-001 |
-| Version | 1.0 |
-| Date | 2026-10-24 |
-| Status | Proposed / Pending installation and validation |
+| Version | 1.1 |
+| Date | 2026-10-31 |
+| Status | Implementation files prepared / Live installation and validation pending |
 | Classification | Private — Home Security Architecture |
 | System | DSC PowerSeries PC1616 (v4.23NA) with EnvisaLink 4 |
 | Monitoring model | Self-monitored; no professional monitoring provider |
@@ -15,7 +15,14 @@
 
 ## 1. Executive Summary
 
-The project extends an existing DSC PowerSeries PC1616 wired home alarm with network connectivity through an EnvisaLink 4 (EVL-4) interface. The existing alarm panel, keypad, wired door/window contacts, and siren remain the authoritative local security system. EyezOn provides supported remote access and event notifications. An optional Home Assistant deployment provides local dashboards, event history, and custom automations.
+The project extends an existing DSC PowerSeries PC1616 wired home alarm with network connectivity through an EnvisaLink 4 (EVL-4) interface. The existing alarm panel, keypad, wired door/window contacts, and siren remain the authoritative local security system. EyezOn provides independent remote access and event notifications. Home Assistant is required by the expanded implementation scope and provides local dashboards, event history, authorized control and iPhone notification automations.
+
+Home Assistant Container is prepared for a Windows / WSL2 / Docker host,
+with a loopback-only bootstrap, an explicit trusted-LAN binding after onboarding, and
+Cloud or restricted VPN remote access. Runtime configuration is kept outside version
+control. Detailed dependencies and acceptance gates are in [ROADMAP.md](ROADMAP.md)
+and [TEST_PLAN.md](TEST_PLAN.md). Hardware and account validation must be recorded
+privately for each deployment. No automatic alarm control is authorized.
 
 The primary design objective is to add phone and computer visibility **without making the alarm dependent on the internet, a cloud service, or a general-purpose computer**.
 
@@ -26,8 +33,8 @@ The primary design objective is to add phone and computer visibility **without m
 - Preserve existing DSC PC1616 alarm functionality and wired zones.
 - Integrate EnvisaLink 4 with the DSC Keybus and wired home LAN.
 - Configure EyezOn self-monitoring and alarm/arm/disarm notifications.
-- Support authorized remote status inspection and, if enabled, arm/disarm operations.
-- Optionally integrate Home Assistant for local dashboard, zone history, and automations.
+- Support authorized remote status inspection and manually initiated arm/disarm operations.
+- Integrate Home Assistant for local dashboard, zone history, and notification automations.
 - Test local alarm continuity during internet/network interruptions.
 
 ### 2.2 Out of Scope
@@ -40,14 +47,15 @@ The primary design objective is to add phone and computer visibility **without m
 
 ## 3. Current-State System
 
-The following hardware has been identified from photographs supplied by the homeowner:
+The design targets the following hardware. Verify the inventory onsite and keep
+deployment-specific observations and zone maps private:
 
 | Component | Current state |
 |---|---|
 | Alarm control panel | DSC PowerSeries PC1616 |
 | Firmware | v4.23NA (as labeled) |
 | Keypad | DSC wired keypad |
-| Intrusion sensors | Existing wired door/window contacts; exact zone map not yet verified |
+| Intrusion sensors | Wired door/window contacts and motion detectors; verify each zone privately |
 | Local annunciation | Existing alarm/siren equipment; operation to be validated |
 | Backup power | 12 V alarm backup battery; capacity/health to be checked |
 | Monitoring provider | None |
@@ -66,8 +74,10 @@ flowchart TB
         B[Backup Battery and AC Supply] --> P
         P <-->|DSC Keybus: RED / BLK / YEL / GRN| E[EnvisaLink 4]
         E <-->|Ethernet / LAN| R[Home Router / Switch]
-        R <-->|Local TCP 4025| H[Home Assistant — Optional]
+        R <-->|Local TCP 4025| H[Home Assistant Container]
         H --> D[Local PC / Mobile Dashboard]
+        H -->|Cloud or restricted VPN| I[iPhone remote access]
+        H -->|Companion notifications| I
     end
     R <-->|Outbound internet| C[EyezOn Service]
     C -->|Event alerts / remote access| M[Phone / Web Client]
@@ -85,7 +95,7 @@ flowchart TB
 | EnvisaLink 4 | Keybus-to-Ethernet integration, supported status/command interface | Keybus power, LAN |
 | Router/switch | LAN connectivity and internet uplink | Network power and ISP |
 | EyezOn | Remote service, supported alert delivery and remote UI | Internet and account configuration |
-| Home Assistant (optional) | Local dashboard, history, automations | Always-on host and LAN |
+| Home Assistant | Local dashboard, history, notification automations, authorized control | Always-on host and LAN |
 | Phone/PC | User interface and notification reception | Network, application access |
 
 ## 6. Interfaces and Connectivity
@@ -110,11 +120,13 @@ Actual IP addresses, credentials, MAC addresses, zone labels, and user codes mus
 | FR-003 | Report alarm trigger events to remote user | Must | Notification test |
 | FR-004 | Report arm and disarm events where supported | Must | Notification test |
 | FR-005 | Display current alarm status remotely | Must | App/web status test |
-| FR-006 | Display individual wired zone status | Should | Open/close each mapped contact |
-| FR-007 | Support authorized remote arm/disarm | Should | Permissioned command test |
-| FR-008 | Maintain event history | Should | Review portal/optional HA history |
+| FR-006 | Display individual wired zone status | Must | Open/close each mapped contact |
+| FR-007 | Support authorized remote arm/disarm | Must | Permissioned command test |
+| FR-008 | Maintain event history | Should | Review portal and HA history |
 | FR-009 | Support optional local automations | Could | HA automation test |
-| FR-010 | Indicate communications failure or loss of service | Should | Controlled outage test |
+| FR-010 | Indicate communications failure or loss of service | Must | Controlled outage test, including reachable host with failed TPI |
+| FR-011 | Send iPhone system-trouble notifications | Must | Verified panel signal and notification test |
+| FR-012 | Secure HA remote access without direct alarm exposure | Must | Cellular access and network policy review |
 
 ## 8. Non-Functional Requirements
 
@@ -138,7 +150,7 @@ Actual IP addresses, credentials, MAC addresses, zone labels, and user codes mus
 4. EnvisaLink receives the relevant panel event over Keybus.
 5. With working network and service connectivity, EyezOn processes the event.
 6. A configured notification is sent to the user's phone or email.
-7. If Home Assistant is enabled, it may independently record the alarm state locally.
+7. Home Assistant independently records the alarm state locally when its integration and host are operational.
 
 ### 9.2 Arm / Disarm
 
@@ -156,7 +168,7 @@ Actual IP addresses, credentials, MAC addresses, zone labels, and user codes mus
 
 ## 10. Security Architecture
 
-- **Trust boundaries:** Physical alarm domain, trusted home LAN, optional local automation host, external EyezOn cloud, remote user device.
+- **Trust boundaries:** Physical alarm domain, trusted home LAN, local automation host, external EyezOn cloud, remote user device.
 - **Authentication:** Change default EnvisaLink local credentials; use a unique EyezOn password; protect phone and PC access.
 - **Authorization:** Limit remote arm/disarm access to approved users; prefer monitoring-only access where control is unnecessary.
 - **Network hardening:** Use DHCP reservation; permit integration access only from trusted devices; never directly expose TCP 4025 or local management UI to the internet.
@@ -170,7 +182,7 @@ Actual IP addresses, credentials, MAC addresses, zone labels, and user codes mus
 |---|---|---|---|
 | ISP outage | Normally continues | Unavailable/delayed | Maintain local siren; consider independent backup connectivity later |
 | Router outage | Normally continues | Unavailable/delayed | Router UPS; network health checks |
-| Home Assistant outage | Continues | EyezOn path unaffected | Keep HA optional |
+| Home Assistant outage | Expected to continue; verify onsite | EyezOn path unaffected by HA host failure | Keep HA outside local alarm critical path |
 | EyezOn outage | Continues | Unavailable/delayed | Do not rely on cloud as sole security response |
 | EnvisaLink failure | Normally continues | EnvisaLink-dependent access unavailable | Verify keypad and panel operation after installation |
 | AC power failure | Continues while battery supports load | Depends on network power | Check battery; UPS for router/modem |
@@ -199,7 +211,7 @@ Actual IP addresses, credentials, MAC addresses, zone labels, and user codes mus
 - Register/activate the module with EyezOn according to its instructions.
 - Enable desired alarm, arm, disarm, and trouble notifications.
 
-### Phase 4 — Optional Home Assistant
+### Phase 4 — Home Assistant
 
 - Deploy Home Assistant on a suitable always-on host.
 - Configure the EnvisaLink integration with DSC panel type, local host/IP, credentials, partition, and zone map.
@@ -235,10 +247,12 @@ Actual IP addresses, credentials, MAC addresses, zone labels, and user codes mus
 | OD-002 | Ethernet availability at alarm cabinet | To verify |
 | OD-003 | Final zone-to-door/window mapping | To verify |
 | OD-004 | EyezOn account and preferred notification channels | To configure |
-| OD-005 | Whether Home Assistant is required | Optional decision |
-| OD-006 | Home Assistant hosting device and uptime expectations | If HA selected |
+| OD-005 | Whether Home Assistant is required | Required by expanded user scope |
+| OD-006 | Home Assistant hosting device and uptime expectations | Windows Container template prepared; verify host access and uptime per deployment |
 | OD-007 | Backup power for router/modem | Recommended assessment |
-| OD-008 | Desired remote arm/disarm permissions | To decide |
+| OD-008 | Desired remote arm/disarm permissions | Authorized manual control required; users and supervised test pending |
+| OD-009 | TPI health and panel-trouble signals | Must verify live; Ping does not establish session health |
+| OD-010 | Secure HA remote access | Cloud or restricted VPN; verify account policy, binding and cellular access |
 
 ## 15. Operational Model
 

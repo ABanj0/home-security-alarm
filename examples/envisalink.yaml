@@ -1,0 +1,20 @@
+# Copy to runtime/config/packages/envisalink.yaml AFTER hardware and credentials gates.
+envisalink:
+  host: !secret envisalink_host
+  panel_type: DSC
+  user_name: !secret envisalink_user
+  password: !secret envisalink_password
+  port: 4025
+  evl_version: 4
+  keepalive_interval: 60
+  timeout: 10
+  # No stored alarm code. Authorized users enter it at runtime.
+  # Confirm partition 1 is in use before enabling this example.
+  partitions:
+    1:
+      name: Home Alarm
+  # Add ONLY verified zone numbers. Repeat for every mapped contact.
+  # zones:
+  #   1:
+  #     name: Zone 01
+  #     type: opening

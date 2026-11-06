@@ -1,0 +1,12 @@
+# Disabled example: replace BOTH placeholders based on observed keypad attributes.
+# Do not deploy a guessed attribute or infer 'healthy' from a missing value.
+template:
+  - binary_sensor:
+      - name: Alarm Panel Trouble
+        unique_id: home_alarm_panel_trouble
+        device_class: problem
+        availability: >-
+          {{ states('sensor.REPLACE_KEYPAD') not in ['unknown', 'unavailable'] and
+             state_attr('sensor.REPLACE_KEYPAD', 'REPLACE_BOOLEAN_TROUBLE_ATTRIBUTE') in [true, false] }}
+        state: >-
+          {{ state_attr('sensor.REPLACE_KEYPAD', 'REPLACE_BOOLEAN_TROUBLE_ATTRIBUTE') == true }}

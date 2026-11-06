@@ -1,0 +1,11 @@
+.venv/
+.docker-local/
+runtime/
+private/
+.env
+secrets.yaml
+*.log
+__pycache__/
+.bootstrap.lock
+compose.override.yaml
+.publication/

@@ -1,0 +1,32 @@
+blueprint:
+  name: Optional contact activity notifications
+  description: Select verified contacts only. Notifications are sent on opening, not closing.
+  domain: automation
+  input:
+    contacts:
+      name: Door/window entities
+      selector:
+        entity:
+          domain: binary_sensor
+          multiple: true
+    notify_action:
+      name: iPhone notify action (notify.mobile_app_...)
+      selector:
+        text:
+variables:
+  phone_action: !input notify_action
+triggers:
+  - trigger: state
+    entity_id: !input contacts
+    from: "off"
+    to: "on"
+conditions:
+  - condition: template
+    value_template: "{{ phone_action.startswith('notify.mobile_app_') }}"
+actions:
+  - action: "{{ phone_action }}"
+    data:
+      title: Contact activity
+      message: "{{ trigger.to_state.name }} opened."
+mode: queued
+max: 10
