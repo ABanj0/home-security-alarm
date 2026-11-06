@@ -1,0 +1,55 @@
+blueprint:
+  name: Alarm state notifications (no alarm commands)
+  description: Select the real partition and iPhone notify action. Sends notifications only.
+  domain: automation
+  input:
+    alarm:
+      name: Alarm partition
+      selector:
+        entity:
+          domain: alarm_control_panel
+    notify_action:
+      name: iPhone notify action
+      description: Exact action from Developer Tools, e.g. notify.mobile_app_your_iphone
+      selector:
+        text:
+variables:
+  phone_action: !input notify_action
+triggers:
+  - trigger: state
+    entity_id: !input alarm
+    to: triggered
+    id: triggered
+  - trigger: state
+    entity_id: !input alarm
+    to:
+      - armed_home
+      - armed_away
+      - armed_night
+      - armed_vacation
+      - armed_custom_bypass
+    id: armed
+  - trigger: state
+    entity_id: !input alarm
+    to: disarmed
+    id: disarmed
+conditions:
+  - condition: template
+    value_template: "{{ phone_action.startswith('notify.mobile_app_') }}"
+  - condition: template
+    value_template: >-
+      {{ trigger.to_state is not none and
+         (trigger.id == 'triggered' or
+          (trigger.from_state is not none and
+           trigger.from_state.state not in ['unknown', 'unavailable'] and
+           trigger.from_state.state != trigger.to_state.state)) }}
+actions:
+  - action: "{{ phone_action }}"
+    data:
+      title: Home alarm
+      message: >-
+        {% if trigger.id == 'triggered' %}Alarm triggered.
+        {% elif trigger.id == 'armed' %}Alarm armed ({{ trigger.to_state.state }}).
+        {% else %}Alarm disarmed.{% endif %}
+mode: queued
+max: 20

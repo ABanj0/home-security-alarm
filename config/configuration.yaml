@@ -1,0 +1,19 @@
+# Bootstrap has no connection to the alarm. Enable packages only after SETUP.md gates.
+default_config:
+homeassistant:
+  name: Home
+  time_zone: America/Toronto
+  packages: !include_dir_named packages
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+recorder:
+  purge_keep_days: 7
+lovelace:
+  dashboards:
+    alarm-status:
+      mode: yaml
+      title: Alarm
+      icon: mdi:shield-home
+      show_in_sidebar: true
+      filename: dashboards/alarm.yaml

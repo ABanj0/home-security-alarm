@@ -1,0 +1,70 @@
+blueprint:
+  name: Alarm health notifications (verified binary sensor)
+  description: >-
+    Instantiate separately for panel trouble and device connectivity. For trouble,
+    on means fault; for Ping connectivity, off means loss. Ping does not prove TPI health.
+  domain: automation
+  input:
+    health_sensor:
+      name: Verified health binary sensor
+      selector:
+        entity:
+          domain: binary_sensor
+    fault_state:
+      name: Fault state
+      default: "on"
+      selector:
+        select:
+          options: ["on", "off"]
+    label:
+      name: Description of the monitored signal
+      default: Alarm health
+      selector:
+        text:
+    notify_action:
+      name: iPhone notify action (notify.mobile_app_...)
+      selector:
+        text:
+variables:
+  health_entity: !input health_sensor
+  fault_value: !input fault_state
+  health_label: !input label
+  phone_action: !input notify_action
+triggers:
+  - trigger: state
+    entity_id: !input health_sensor
+    to: !input fault_state
+    for: "00:01:00"
+    id: fault
+  - trigger: state
+    entity_id: !input health_sensor
+    to: unavailable
+    for: "00:01:00"
+    id: missing
+  - trigger: state
+    entity_id: !input health_sensor
+    to: unknown
+    for: "00:01:00"
+    id: missing
+  # Startup check also covers a fault already present across an HA restart.
+  - trigger: homeassistant
+    event: start
+    id: startup
+conditions:
+  - condition: template
+    value_template: "{{ phone_action.startswith('notify.mobile_app_') }}"
+actions:
+  - if:
+      - condition: template
+        value_template: "{{ trigger.id == 'startup' }}"
+    then:
+      - delay: "00:01:00"
+  - condition: template
+    value_template: "{{ states(health_entity) in [fault_value, 'unknown', 'unavailable'] }}"
+  - action: "{{ phone_action }}"
+    data:
+      title: Home alarm health
+      message: >-
+        {{ health_label }}: {{ 'fault detected' if is_state(health_entity, fault_value)
+        else 'monitor unavailable; health is unknown' }}. Check the keypad and connectivity.
+mode: restart

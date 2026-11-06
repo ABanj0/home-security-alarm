@@ -1,0 +1,7 @@
+# Optional dashboard card, only after entity mapping and authorized control testing.
+# A dashboard is not an access-control boundary. Restrict HA accounts separately.
+type: alarm-panel
+entity: alarm_control_panel.home_alarm
+states:
+  - arm_home
+  - arm_away

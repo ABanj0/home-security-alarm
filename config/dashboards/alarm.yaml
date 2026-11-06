@@ -1,0 +1,22 @@
+title: Alarm
+views:
+  - title: Status
+    path: status
+    cards:
+      - type: markdown
+        content: >-
+          Setup pending. Alarm and sensor entities must be mapped to the actual
+          installation. A displayed state alone does not prove a live connection.
+      - type: entities
+        title: Alarm status
+        show_header_toggle: false
+        entities:
+          - entity: alarm_control_panel.home_alarm
+            name: Partition status (verify entity ID)
+          - entity: sensor.home_alarm_keypad
+            name: Keypad (verify entity ID)
+      - type: markdown
+        content: >-
+          Add each verified contact as an entities card row. Add the verified
+          trouble and connectivity sensors here too. Never label an unknown
+          zone as a particular door or window.
